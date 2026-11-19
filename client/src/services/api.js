@@ -71,12 +71,19 @@ export function fetchDatasetAnalysis(datasetId) {
     return apiRequest(`/datasets/${datasetId}/analysis`);
 }
 
-export function askDatasetAI(datasetId, question) {
+
+export function askDatasetAI(
+    datasetId,
+    question,
+    history = []
+) {
     return apiRequest("/ai/ask", {
         method: "POST",
         body: JSON.stringify({
             datasetId,
             question,
+            history,
         }),
     });
 }
+
