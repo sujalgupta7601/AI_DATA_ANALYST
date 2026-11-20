@@ -246,3 +246,16 @@ Developed as a full-stack AI and data analytics project demonstrating React deve
 ## License
 
 No license has been specified yet. All rights are reserved unless a license is added to the repository.
+
+## Screenshots
+
+### Dashboard
+![DataPilot AI Dashboard](assets/Dashboard.png)
+
+### AI Copilot
+![DataPilot AI Copilot](assets/ai-copilot.png)
+
+### Dataset Management
+![Dataset Management](assets/datasets.png)
+### Dataset Management
+![Dataset Management](assets/dataset.png)
