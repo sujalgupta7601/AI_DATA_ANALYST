@@ -6,3 +6,4 @@ server/data/
 server/uploads/
 *.duckdb
 *.duckdb.wal
+data/
