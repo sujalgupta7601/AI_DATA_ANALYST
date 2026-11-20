@@ -87,3 +87,12 @@ export function askDatasetAI(
     });
 }
 
+export function getAllDatasets() {
+    return apiRequest("/datasets");
+}
+
+export function deleteDataset(id) {
+    return apiRequest(`/datasets/${id}`, {
+        method: "DELETE",
+    });
+}

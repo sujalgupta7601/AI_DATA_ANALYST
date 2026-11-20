@@ -2,9 +2,30 @@
 import {
     importDataset,
     getDatasetPreview,
-    analyzeDataset,
+    analyzeDataset, listDatasets, deleteDatasetById
 } from "../services/duckdbService.js";
+export async function getAllDatasets(req, res, next) {
+    try {
+        const datasets = await listDatasets();
 
+        const safeDatasets = JSON.parse(
+            JSON.stringify(datasets, (key, value) =>
+                typeof value === "bigint"
+                    ? Number.isSafeInteger(Number(value))
+                        ? Number(value)
+                        : value.toString()
+                    : value
+            )
+        );
+
+        res.json({
+            success: true,
+            data: safeDatasets,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
 export async function uploadDataset(req, res, next) {
     try {
         if (!req.file) {
@@ -50,6 +71,18 @@ export async function getDatasetAnalysis(req, res, next) {
         return res.json({
             success: true,
             data,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+export async function removeDataset(req, res, next) {
+    try {
+        const result = await deleteDatasetById(req.params.id);
+
+        res.json({
+            success: true,
+            data: result,
         });
     } catch (error) {
         next(error);

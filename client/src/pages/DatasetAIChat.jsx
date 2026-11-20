@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 import {
     ResponsiveContainer,
@@ -141,16 +141,33 @@ function ResultChart({ message }) {
 
 export default function DatasetAIChat({ datasetId }) {
     const [question, setQuestion] = useState("");
-    const [messages, setMessages] = useState([]);
+    const storageKey = `datapilot_chat_${datasetId}`;
+
+    const [messages, setMessages] = useState(() => {
+        try {
+            const saved = sessionStorage.getItem(storageKey);
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-
+    const requestInProgress = useRef(false);
+    useEffect(() => {
+        sessionStorage.setItem(
+            storageKey,
+            JSON.stringify(messages)
+        );
+    }, [messages, storageKey]);
     async function handleAsk(event) {
         event.preventDefault();
 
         const text = question.trim();
 
-        if (!text || loading || !datasetId) return;
+        if (!text || requestInProgress.current || !datasetId) return;
+
+        requestInProgress.current = true;
 
         const history = messages
             .filter((message) =>
@@ -195,8 +212,14 @@ export default function DatasetAIChat({ datasetId }) {
                 },
             ]);
         } catch (err) {
-            setError(err.message || "Something went wrong.");
+            setError(
+                err.message ||
+                "Unable to analyze your dataset. Please try again."
+            );
+
+            setQuestion(text);
         } finally {
+            requestInProgress.current = false;
             setLoading(false);
         }
     }
@@ -204,6 +227,7 @@ export default function DatasetAIChat({ datasetId }) {
     function clearConversation() {
         if (loading) return;
 
+        sessionStorage.removeItem(storageKey);
         setMessages([]);
         setQuestion("");
         setError("");
@@ -256,13 +280,19 @@ export default function DatasetAIChat({ datasetId }) {
                         key={index}
                         className={
                             message.role === "user"
-                                ? "ml-auto max-w-2xl rounded-xl bg-indigo-600 p-4 text-white"
-                                : "max-w-4xl space-y-4 rounded-xl border border-slate-700 bg-slate-800 p-4 text-white"
+                                ? "ml-auto max-w-2xl rounded-2xl rounded-tr-sm bg-indigo-600 p-4 text-white shadow-lg"
+                                : "max-w-4xl space-y-4 rounded-2xl rounded-tl-sm border border-slate-700 bg-slate-800/80 p-5 text-white shadow-md"
                         }
                     >
                         {message.role === "assistant" && (
-                            <p className="text-sm font-semibold text-indigo-300">
-                                DataPilot AI
+                            <p
+                                className={
+                                    message.role === "user"
+                                        ? "mb-2 text-xs font-semibold text-indigo-200"
+                                        : "mb-2 text-xs font-semibold text-indigo-300"
+                                }
+                            >
+                                {message.role === "user" ? "You" : "✦ DataPilot AI"}
                             </p>
                         )}
 
@@ -347,8 +377,21 @@ export default function DatasetAIChat({ datasetId }) {
                 )}
 
                 {error && (
-                    <div className="rounded-xl border border-red-800 bg-red-950 p-4 text-red-300">
-                        {error}
+                    <div
+                        role="alert"
+                        className="rounded-xl border border-red-800 bg-red-950/50 p-4"
+                    >
+                        <p className="font-semibold text-red-300">
+                            Unable to complete AI analysis
+                        </p>
+
+                        <p className="mt-2 text-sm text-red-200">
+                            {error}
+                        </p>
+
+                        <p className="mt-2 text-xs text-slate-400">
+                            Check your question or AI service, then try again.
+                        </p>
                     </div>
                 )}
             </div>

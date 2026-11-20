@@ -1,10 +1,11 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     uploadCSV,
     fetchDatasetPreview,
+    getAllDatasets,
+    deleteDataset,
 } from "../services/api";
-
 export default function Datasets({
     datasetId,
     setDatasetId,
@@ -13,6 +14,49 @@ export default function Datasets({
     const [dataset, setDataset] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [savedDatasets, setSavedDatasets] = useState([]);
+    const [deletingId, setDeletingId] = useState(null);
+    async function loadDatasets() {
+        const response = await getAllDatasets();
+        setSavedDatasets(response.data || []);
+    }
+    useEffect(() => {
+        loadDatasets().catch((err) => {
+            setError(err.message);
+        });
+    }, []);
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadSavedDataset() {
+            if (!datasetId) {
+                setDataset(null);
+                return;
+            }
+
+            try {
+                const response = await fetchDatasetPreview(datasetId);
+
+                if (!cancelled) {
+                    setDataset(response.data);
+                    setError("");
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setDataset(null);
+                    setError(
+                        "Could not load saved dataset: " + err.message
+                    );
+                }
+            }
+        }
+
+        loadSavedDataset();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [datasetId]);
 
     async function handleUpload() {
         if (!file) return;
@@ -28,13 +72,49 @@ export default function Datasets({
 
             setDatasetId(id);
             setDataset(preview.data);
+
+            await loadDatasets();
+
+            setFile(null);
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
     }
+    function handleSelect(id) {
+        setError("");
+        setDataset(null);
+        setDatasetId(id);
+    }
+    async function handleDelete(id) {
+        const confirmed = window.confirm(
+            "Are you sure you want to permanently delete this dataset?"
+        );
 
+        if (!confirmed) return;
+
+        setDeletingId(id);
+        setError("");
+
+        try {
+            await deleteDataset(id);
+
+            const response = await getAllDatasets();
+            const remaining = response.data || [];
+
+            setSavedDatasets(remaining);
+
+            if (datasetId === id) {
+                setDataset(null);
+                setDatasetId(remaining[0]?.id || null);
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setDeletingId(null);
+        }
+    }
     return (
         <div className="space-y-6">
             <div>
@@ -42,14 +122,14 @@ export default function Datasets({
                     Datasets
                 </h1>
                 <p className="text-slate-400 mt-2">
-                    Upload your CSV to analyze it with DuckDB.
+                    Upload CSV or Excel (.xlsx) files to analyze them with DuckDB.
                 </p>
             </div>
 
             <div className="rounded-2xl border border-slate-700 bg-slate-900 p-6">
                 <input
                     type="file"
-                    accept=".csv,text/csv"
+                    accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     onChange={(e) =>
                         setFile(e.target.files?.[0] || null)
                     }
@@ -61,13 +141,66 @@ export default function Datasets({
                     disabled={!file || loading}
                     className="mt-5 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
                 >
-                    {loading ? "Uploading..." : "Upload CSV"}
+                    {loading ? "Uploading..." : "Upload Dataset"}
                 </button>
 
                 {error && (
                     <p className="mt-4 text-red-400">
                         {error}
                     </p>
+                )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-700 bg-slate-900 p-6">
+                <h2 className="mb-4 text-xl font-semibold">
+                    Saved Datasets
+                </h2>
+
+                {savedDatasets.length === 0 ? (
+                    <p className="text-slate-400">
+                        No saved datasets yet.
+                    </p>
+                ) : (
+                    <div className="space-y-3">
+                        {savedDatasets.map((item) => (
+                            <div
+                                key={item.id}
+                                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-800 p-4"
+                            >
+                                <div>
+                                    <p className="font-semibold text-white">
+                                        {item.name}
+                                    </p>
+
+                                    <p className="text-sm text-slate-400">
+                                        {item.rowCount} rows
+                                    </p>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleSelect(item.id)}
+                                        disabled={datasetId === item.id}
+                                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+                                    >
+                                        {datasetId === item.id
+                                            ? "Selected"
+                                            : "Select"}
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleDelete(item.id)}
+                                        disabled={deletingId !== null}
+                                        className="rounded-lg bg-red-600/20 px-4 py-2 text-sm text-red-300 disabled:opacity-50"
+                                    >
+                                        {deletingId === item.id
+                                            ? "Deleting..."
+                                            : "Delete"}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
 

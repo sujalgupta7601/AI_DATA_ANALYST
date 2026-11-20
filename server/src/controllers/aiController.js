@@ -99,7 +99,7 @@ export async function askDatasetAI(req, res, next) {
             });
         }
 
-        const dataset = getCurrentDataset(datasetId);
+        const dataset = await getCurrentDataset(datasetId);
 
         if (!dataset) {
             return res.status(404).json({
@@ -114,12 +114,30 @@ export async function askDatasetAI(req, res, next) {
         // previous query rather than asking Ollama again.
         const plan =
             previous && isChartOnlyQuestion(question)
-                ? previous.plan
+                ? { ...previous.plan }
                 : await generateAnalysisPlan(
                     question.trim(),
                     dataset.columns,
                     history
                 );
+
+        const groupingMatch = question.match(
+            /\b(?:by|per)\s+([a-zA-Z_][a-zA-Z0-9_]*)\b/i
+        );
+
+        if (groupingMatch) {
+            const requestedColumn = groupingMatch[1];
+
+            const matchingColumn = dataset.columns.find(
+                (column) =>
+                    column.name.toLowerCase() ===
+                    requestedColumn.toLowerCase()
+            );
+
+            if (matchingColumn) {
+                plan.dimension = matchingColumn.name;
+            }
+        }
 
         // Phase 5's compiler validates this plan again.
         const analysis = await runAIAnalysis(datasetId, plan);
@@ -152,7 +170,33 @@ export async function askDatasetAI(req, res, next) {
                 },
             },
         });
+
     } catch (error) {
-        next(error);
+        console.error("AI analysis error:", error);
+
+        if (error.status === 400 || error.status === 404) {
+            return res.status(error.status).json({
+                success: false,
+                message: error.message,
+            });
+        }
+
+        if (
+            error.code === "ECONNREFUSED" ||
+            error.cause?.code === "ECONNREFUSED"
+        ) {
+            return res.status(503).json({
+                success: false,
+                message:
+                    "AI service is unavailable. Please start Ollama and try again.",
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message:
+                "AI analysis failed. Please try a different question.",
+        });
     }
 }
+

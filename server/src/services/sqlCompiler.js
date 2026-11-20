@@ -166,7 +166,16 @@ function compileFilter(filter, columns) {
     return `${rawColumn} ${comparison} ${sqlString(filter.value)}`;
 }
 
-export function compileAnalysisSQL(plan, columns) {
+export function compileAnalysisSQL(plan, columns, tableName) {
+    if (
+        typeof tableName !== "string" ||
+        !/^dataset_[0-9a-f]{32}$/.test(tableName)
+    ) {
+        throw Object.assign(
+            new Error("Invalid dataset table name."),
+            { status: 422 }
+        );
+    }
     if (
         !plan ||
         typeof plan !== "object" ||
@@ -236,7 +245,7 @@ export function compileAnalysisSQL(plan, columns) {
       SELECT
         ${identifier(dimension)} AS label,
         ${expression} AS value
-      FROM uploaded_data
+      FROM "${tableName}"
       ${whereClause}
       GROUP BY ${identifier(dimension)}
       ORDER BY value ${sort} NULLS LAST, label ASC
@@ -246,7 +255,7 @@ export function compileAnalysisSQL(plan, columns) {
         sql = `
       SELECT
         ${expression} AS value
-      FROM uploaded_data
+      FROM "${tableName}"
       ${whereClause}
     `;
     }

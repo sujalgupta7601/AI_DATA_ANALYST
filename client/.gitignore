@@ -23,3 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 .env
+data/
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp
+.env
+.env.*
+!.env.example
+node_modules/

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Menu, Bell, Search } from "lucide-react";
 import DatasetDashboard from "./pages/DatasetDashboard";
@@ -8,9 +8,65 @@ import Dashboard from "./pages/Dashboard";
 import Datasets from "./pages/Datasets";
 import AIChat from "./pages/AIChat";
 import DatasetAIChat from "./pages/DatasetAIChat";
+import { getAllDatasets } from "./services/api";
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [datasetId, setDatasetId] = useState(null);
+  const [datasetId, setDatasetId] = useState(() => {
+    return localStorage.getItem("datapilot_dataset_id") || null;
+  });
+  const [datasets, setDatasets] = useState([]);
+
+  useEffect(() => {
+    async function restoreDataset() {
+      try {
+        const response = await getAllDatasets();
+        const savedDatasets = response.data || [];
+
+        setDatasets(savedDatasets);
+
+        const savedId = localStorage.getItem(
+          "datapilot_dataset_id"
+        );
+
+        if (
+          savedId &&
+          savedDatasets.some((dataset) => dataset.id === savedId)
+        ) {
+          setDatasetId(savedId);
+        } else if (savedDatasets.length > 0) {
+          setDatasetId(savedDatasets[0].id);
+          localStorage.setItem(
+            "datapilot_dataset_id",
+            savedDatasets[0].id
+          );
+        } else {
+          setDatasetId(null);
+          localStorage.removeItem(
+            "datapilot_dataset_id"
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Failed to restore datasets:",
+          error
+        );
+      }
+    }
+
+    restoreDataset();
+  }, []);
+  useEffect(() => {
+    if (datasetId) {
+      localStorage.setItem(
+        "datapilot_dataset_id",
+        datasetId
+      );
+    } else {
+      localStorage.removeItem(
+        "datapilot_dataset_id"
+      );
+    }
+  }, [datasetId]);
   return (
     <div className="min-h-screen bg-[#080d19] text-slate-100">
       <Sidebar

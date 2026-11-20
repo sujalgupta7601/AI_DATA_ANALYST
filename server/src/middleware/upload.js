@@ -10,8 +10,15 @@ export const upload = multer({
     },
 
     fileFilter(req, file, callback) {
-        if (!file.originalname.toLowerCase().endsWith(".csv")) {
-            const error = new Error("Only CSV files are supported.");
+        const filename = file.originalname.toLowerCase();
+
+        const isCSV = filename.endsWith(".csv");
+        const isExcel = filename.endsWith(".xlsx");
+
+        if (!isCSV && !isExcel) {
+            const error = new Error(
+                "Only CSV and Excel (.xlsx) files are supported."
+            );
             error.status = 400;
             return callback(error);
         }
